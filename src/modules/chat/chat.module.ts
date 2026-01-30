@@ -21,6 +21,7 @@ import { MessageService } from "./services/message.service";
 
 // Controllers
 import { ChatController } from "./controllers/chat.controller";
+import { GuestChatController } from "./controllers/guest-chat.controller";
 
 // Import auth module for guards
 import { AuthModule } from "../auth/auth.module";
@@ -36,7 +37,7 @@ import { AuthModule } from "../auth/auth.module";
     ConfigModule,
     AuthModule,
   ],
-  controllers: [ChatController],
+  controllers: [ChatController, GuestChatController],
   providers: [
     ConversationRepository,
     MessageRepository,
