@@ -18,13 +18,11 @@ export interface Citation {
 export interface AiResponse {
   content: string;
   tokenCount: number;
-  citations?: Citation[];
 }
 
-export interface AiStreamChunk {
-  text: string;
-  citation?: Citation;
-}
+export type AiStreamChunk =
+  | { type: "text"; text: string }
+  | { type: "trace"; trace: string };
 
 export interface AiStreamResponse {
   stream: AsyncIterable<AiStreamChunk>;

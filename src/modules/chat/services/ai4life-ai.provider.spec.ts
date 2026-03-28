@@ -30,9 +30,9 @@ describe("Ai4lifeAiProvider", () => {
       throw new Error("Expected streaming response");
     }
 
-    const chunks: string[] = [];
+    const chunks: Array<{ type?: string; text?: string; trace?: string; citation?: unknown }> = [];
     for await (const chunk of result.stream) {
-      chunks.push(chunk.text);
+      chunks.push(chunk);
     }
 
     return chunks;
@@ -101,12 +101,37 @@ describe("Ai4lifeAiProvider", () => {
     const chunks = await collectStreamTexts(provider);
 
     expect(chunks).toEqual([
-      "Dinh tuyen: Dang phan tich y dinh",
-      "## \nPhan\n tich",
+      { type: "trace", trace: "Dinh tuyen: Dang phan tich y dinh" },
+      { type: "text", text: "## \nPhan\n tich" },
     ]);
   });
 
-  it("extracts citations after parsing a JSON SSE payload", async () => {
+  it("does not emit citation chunks in streaming mode", async () => {
+    const payload = JSON.stringify({
+      text: 'Noi dung {"start_char":0,"end_char":8,"resource_type":"guideline"}',
+    });
+
+    global.fetch = jest.fn().mockResolvedValue(
+      createStreamResponse([
+        `data: ${payload}\n\n`,
+      ]) as unknown as Response,
+    );
+
+    const provider = new Ai4lifeAiProvider({
+      get: jest.fn().mockReturnValue("http://example.test"),
+    } as unknown as ConfigService);
+
+    const chunks = await collectStreamTexts(provider);
+
+    expect(chunks).toEqual([
+      {
+        type: "text",
+        text: 'Noi dung {"start_char":0,"end_char":8,"resource_type":"guideline"}',
+      },
+    ]);
+  });
+
+  it("keeps citation-like text untouched in non-streaming mode", async () => {
     const payload = JSON.stringify({
       text: 'Noi dung {"start_char":0,"end_char":8,"resource_type":"guideline"}',
     });
@@ -125,13 +150,28 @@ describe("Ai4lifeAiProvider", () => {
       { role: "user", content: "Hi" },
     ], false);
 
-    expect("content" in result && result.content).toBe("Noi dung ");
-    expect("citations" in result && result.citations).toEqual([
-      {
-        start_char: 0,
-        end_char: 8,
-        resource_type: "guideline",
-      },
+    expect("content" in result && result.content).toBe(
+      'Noi dung {"start_char":0,"end_char":8,"resource_type":"guideline"}'
+    );
+  });
+
+  it("stops on upstream done events without yielding them", async () => {
+    global.fetch = jest.fn().mockResolvedValue(
+      createStreamResponse([
+        'data: {"text":"Answer before done"}\n\n',
+        "event: done\ndata: finished\n\n",
+        'data: {"text":"Ignored after done"}\n\n',
+      ]) as unknown as Response,
+    );
+
+    const provider = new Ai4lifeAiProvider({
+      get: jest.fn().mockReturnValue("http://example.test"),
+    } as unknown as ConfigService);
+
+    const chunks = await collectStreamTexts(provider);
+
+    expect(chunks).toEqual([
+      { type: "text", text: "Answer before done" },
     ]);
   });
 });

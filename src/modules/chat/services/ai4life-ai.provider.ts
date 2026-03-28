@@ -6,7 +6,6 @@ import {
   AiResponse,
   AiStreamResponse,
   AiStreamChunk,
-  Citation,
 } from "./ai-provider.interface";
 
 @Injectable()
@@ -94,33 +93,41 @@ export class Ai4lifeAiProvider extends AiProvider {
     options: { includeTrace: boolean },
   ): {
     shouldStop: boolean;
-    text: string;
-    extractedCitations: Citation[];
+    chunks: AiStreamChunk[];
+    fullText: string;
   } {
-    if (message.data === "[DONE]") {
+    if (message.data === "[DONE]" || message.event === "done") {
       return {
         shouldStop: true,
-        text: "",
-        extractedCitations: [],
+        chunks: [],
+        fullText: "",
       };
     }
 
     if (message.event === "trace") {
+      const trace = message.data.trim();
+
       return {
         shouldStop: false,
-        text: options.includeTrace ? message.data : "",
-        extractedCitations: [],
+        chunks: options.includeTrace && trace
+          ? [{ type: "trace", trace }]
+          : [],
+        fullText: "",
       };
     }
 
     const payloadText = this.extractTextFromStreamPayload(message.data);
-    const textToParse = payloadText || message.data;
-    const { text, extractedCitations } = this.parseTextAndCitations(textToParse);
+    const chunks: AiStreamChunk[] = [];
+    const text = payloadText || message.data;
+
+    if (text) {
+      chunks.push({ type: "text", text });
+    }
 
     return {
       shouldStop: false,
-      text,
-      extractedCitations,
+      chunks,
+      fullText: text,
     };
   }
 
@@ -150,8 +157,6 @@ export class Ai4lifeAiProvider extends AiProvider {
 
       // Collect full response from stream
       let fullContent = "";
-      const citations: Citation[] = [];
-
       const reader = response.body?.getReader();
       if (!reader) {
         throw new Error("No response body reader available");
@@ -177,9 +182,8 @@ export class Ai4lifeAiProvider extends AiProvider {
               includeTrace: false,
             });
 
-            if (result.text) {
-              fullContent += result.text;
-              citations.push(...result.extractedCitations);
+            if (result.fullText) {
+              fullContent += result.fullText;
             }
 
             if (result.shouldStop) {
@@ -199,10 +203,10 @@ export class Ai4lifeAiProvider extends AiProvider {
               includeTrace: false,
             });
 
-            if (result.text) {
-              fullContent += result.text;
-              citations.push(...result.extractedCitations);
+            if (result.fullText) {
+              fullContent += result.fullText;
             }
+
           }
         }
       }
@@ -215,7 +219,6 @@ export class Ai4lifeAiProvider extends AiProvider {
       return {
         content: fullContent,
         tokenCount,
-        citations,
       };
     }
     catch (error) {
@@ -272,19 +275,14 @@ export class Ai4lifeAiProvider extends AiProvider {
             const { messages: parsedMessages, remainingBuffer } = readChunkBuffer(buffer);
             buffer = remainingBuffer;
 
-            const yieldedChunks: AiStreamChunk[] = [];
             let shouldStop = false;
             for (const message of parsedMessages) {
               const result = processSseMessage(message, {
                 includeTrace: true,
               });
 
-              if (result.text) {
-                yieldedChunks.push({ text: result.text, citation: undefined });
-              }
-
-              for (const citation of result.extractedCitations) {
-                yieldedChunks.push({ text: "", citation });
+              for (const chunk of result.chunks) {
+                yield chunk;
               }
 
               if (result.shouldStop) {
@@ -293,33 +291,20 @@ export class Ai4lifeAiProvider extends AiProvider {
               }
             }
 
-            for (const chunk of yieldedChunks) {
-              yield chunk;
-            }
-
             if (shouldStop) {
               return;
             }
           }
 
           if (buffer.trim()) {
-            const yieldedChunks: AiStreamChunk[] = [];
             for (const message of flushChunkBuffer(buffer)) {
               const result = processSseMessage(message, {
                 includeTrace: true,
               });
 
-              if (result.text) {
-                yieldedChunks.push({ text: result.text, citation: undefined });
+              for (const chunk of result.chunks) {
+                yield chunk;
               }
-
-              for (const citation of result.extractedCitations) {
-                yieldedChunks.push({ text: "", citation });
-              }
-            }
-
-            for (const chunk of yieldedChunks) {
-              yield chunk;
             }
           }
         }
@@ -377,47 +362,6 @@ export class Ai4lifeAiProvider extends AiProvider {
     }
 
     return "";
-  }
-
-  /**
-   * Parse text and extract inline JSON citations
-   * Returns cleaned text and array of citations
-   */
-  private parseTextAndCitations(text: string): {
-    text: string;
-    extractedCitations: Citation[];
-  } {
-    const citations: Citation[] = [];
-    let cleanedText = text;
-
-    // Regular expression to match JSON objects in the text
-    // Matches {...} that appear to be citation objects
-    const citationRegex = /\{[^{}]*"start_char"[^{}]*\}/g;
-
-    const matches = text.matchAll(citationRegex);
-
-    for (const match of matches) {
-      try {
-        const citationJson = match[0];
-        const citation = JSON.parse(citationJson) as Citation;
-
-        // Validate that it's a citation object (must have start_char and end_char)
-        if (citation.start_char !== undefined && citation.end_char !== undefined) {
-          citations.push(citation);
-
-          // Remove the citation JSON from the text
-          cleanedText = cleanedText.replace(citationJson, "");
-        }
-      }
-      catch {
-        // Not a valid citation JSON, skip
-      }
-    }
-
-    return {
-      text: cleanedText,
-      extractedCitations: citations,
-    };
   }
 
   countTokens(text: string): number {

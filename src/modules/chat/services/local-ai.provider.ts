@@ -4,6 +4,7 @@ import {
   AiProvider,
   AiMessage,
   AiResponse,
+  AiStreamChunk,
   AiStreamResponse,
 } from "./ai-provider.interface";
 
@@ -105,7 +106,7 @@ export class LocalAiProvider extends AiProvider {
 
       const decoder = new TextDecoder();
 
-      const stream = async function* () {
+      const stream = async function* (): AsyncIterable<AiStreamChunk> {
         try {
           while (true) {
             const { done, value } = await reader.read();
@@ -120,7 +121,7 @@ export class LocalAiProvider extends AiProvider {
               try {
                 const data = JSON.parse(line);
                 if (data.message?.content) {
-                  yield { text: data.message.content, citation: undefined };
+                  yield { type: "text", text: data.message.content as string };
                 }
               }
               catch {

@@ -7,6 +7,20 @@ import { MessageEntity, MessageRole } from "../entities/message.entity";
 import { SendMessageDto } from "../dtos/send-message.dto";
 import { AiResponse, AiStreamChunk, AiStreamResponse } from "./ai-provider.interface";
 
+function mergeThinkingMetadata(
+  metadata: Record<string, unknown> | null | undefined,
+  thinking: string[],
+): Record<string, unknown> | undefined {
+  if (thinking.length === 0) {
+    return metadata ?? undefined;
+  }
+
+  return {
+    ...(metadata ?? {}),
+    thinking,
+  };
+}
+
 @Injectable()
 export class MessageService {
   constructor(
@@ -75,7 +89,7 @@ export class MessageService {
     dto: SendMessageDto,
   ): Promise<{
     userMessage: MessageEntity;
-    stream: AsyncIterable<string>;
+    stream: AsyncIterable<AiStreamChunk>;
   }> {
     // Verify conversation exists and belongs to user
     const conversation = await this.chatService.getConversationById(
@@ -120,13 +134,22 @@ export class MessageService {
   private async* wrapStreamWithSave(
     stream: AsyncIterable<AiStreamChunk>,
     conversationId: string,
-  ): AsyncIterable<string> {
+  ): AsyncIterable<AiStreamChunk> {
     let fullContent = "";
+    const thinkingSteps: string[] = [];
 
     for await (const chunk of stream) {
-      const text = chunk.text || "";
-      fullContent += text;
-      yield text;
+      if (chunk.type === "text") {
+        fullContent += chunk.text;
+      } else if (chunk.type === "trace") {
+        const nextTrace = chunk.trace.trim();
+
+        if (nextTrace && thinkingSteps.at(-1) !== nextTrace) {
+          thinkingSteps.push(nextTrace);
+        }
+      }
+
+      yield chunk;
     }
 
     // After streaming completes, save the assistant message
@@ -136,6 +159,7 @@ export class MessageService {
       role: MessageRole.ASSISTANT,
       content: fullContent,
       tokenCount,
+      metadata: mergeThinkingMetadata(undefined, thinkingSteps),
     });
 
     await this.messageRepository.save(assistantMessage);
@@ -238,7 +262,7 @@ export class MessageService {
   ): Promise<{
     conversation: import("../entities/conversation.entity").ConversationEntity;
     userMessage: MessageEntity;
-    stream: AsyncIterable<string>;
+    stream: AsyncIterable<AiStreamChunk>;
   }> {
     // Create conversation with user's message as title (truncated to 100 chars)
     const title = content.length > 100 ? content.substring(0, 97) + "..." : content;

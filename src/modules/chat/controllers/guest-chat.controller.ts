@@ -73,10 +73,7 @@ export class GuestChatController {
     return from(
       (async function* () {
         for await (const chunk of stream) {
-          const text = (chunk as AiStreamChunk).text || "";
-          if (text) {
-            yield JSON.stringify({ type: "text", text });
-          }
+          yield JSON.stringify(chunk as AiStreamChunk);
         }
       })(),
     ).pipe(map(data => ({ data })));
@@ -112,10 +109,7 @@ export class GuestChatController {
     return from(
       (async function* () {
         for await (const chunk of stream) {
-          const text = (chunk as AiStreamChunk).text || "";
-          if (text) {
-            yield JSON.stringify({ type: "text", text });
-          }
+          yield JSON.stringify(chunk as AiStreamChunk);
         }
       })(),
     ).pipe(map(data => ({ data })));

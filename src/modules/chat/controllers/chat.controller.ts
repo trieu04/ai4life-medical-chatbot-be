@@ -158,9 +158,9 @@ export class ChatController {
           conversationId,
         });
 
-        // Then stream the response text
+        // Then stream the response chunks
         for await (const chunk of result.stream) {
-          yield JSON.stringify({ type: "text", text: chunk });
+          yield JSON.stringify(chunk);
         }
       })(),
     ).pipe(map(data => ({ data })));
@@ -224,7 +224,7 @@ export class ChatController {
     return from(
       (async function* () {
         for await (const chunk of result.stream) {
-          yield JSON.stringify({ text: chunk });
+          yield JSON.stringify(chunk);
         }
       })(),
     ).pipe(map(data => ({ data })));
