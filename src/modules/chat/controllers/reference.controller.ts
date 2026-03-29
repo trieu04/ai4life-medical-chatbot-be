@@ -7,7 +7,6 @@ import { ReferenceMetadataService } from "../services/reference-metadata.service
 
 @ApiTags("Chat References")
 @Controller("chat/references")
-@UseGuards(JwtAuthGuard)
 @ApiBearerAuth()
 export class ReferenceController {
   constructor(private readonly referenceMetadataService: ReferenceMetadataService) {}
