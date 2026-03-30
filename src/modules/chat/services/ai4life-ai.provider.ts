@@ -96,22 +96,34 @@ export class Ai4lifeAiProvider extends AiProvider {
     chunks: AiStreamChunk[];
     fullText: string;
   } {
-    if (message.data === "[DONE]" || message.event === "done") {
-      return {
-        shouldStop: true,
-        chunks: [],
-        fullText: "",
-      };
-    }
+    const payload = this.parseStreamPayload(message.data);
 
-    if (message.event === "trace") {
-      const trace = message.data.trim();
+    if (payload?.type === "trace") {
+      const trace = typeof payload.text === "string"
+        ? payload.text.trim()
+        : "";
 
       return {
         shouldStop: false,
         chunks: options.includeTrace && trace
           ? [{ type: "trace", trace }]
           : [],
+        fullText: "",
+      };
+    }
+
+    if (payload?.type === "text" && typeof payload.text === "string") {
+      return {
+        shouldStop: false,
+        chunks: payload.text ? [{ type: "text", text: payload.text }] : [],
+        fullText: payload.text,
+      };
+    }
+
+    if (payload?.type === "done") {
+      return {
+        shouldStop: true,
+        chunks: [],
         fullText: "",
       };
     }
@@ -206,7 +218,6 @@ export class Ai4lifeAiProvider extends AiProvider {
             if (result.fullText) {
               fullContent += result.fullText;
             }
-
           }
         }
       }
@@ -327,38 +338,57 @@ export class Ai4lifeAiProvider extends AiProvider {
   /**
    * Extract text from JSON SSE payloads when present.
    */
-  private extractTextFromStreamPayload(data: string): string {
+  private parseStreamPayload(data: string): {
+    type?: unknown;
+    text?: unknown;
+    message?: { content?: unknown };
+    content?: unknown;
+    response?: unknown;
+    answer?: unknown;
+  } | null {
     try {
-      const payload = JSON.parse(data) as {
+      return JSON.parse(data) as {
+        type?: unknown;
         text?: unknown;
         message?: { content?: unknown };
         content?: unknown;
         response?: unknown;
         answer?: unknown;
       };
-
-      if (typeof payload.text === "string") {
-        return payload.text;
-      }
-
-      if (typeof payload.message?.content === "string") {
-        return payload.message.content;
-      }
-
-      if (typeof payload.content === "string") {
-        return payload.content;
-      }
-
-      if (typeof payload.response === "string") {
-        return payload.response;
-      }
-
-      if (typeof payload.answer === "string") {
-        return payload.answer;
-      }
     }
     catch {
+      return null;
+    }
+  }
+
+  /**
+   * Extract text from JSON SSE payloads when present.
+   */
+  private extractTextFromStreamPayload(data: string): string {
+    const payload = this.parseStreamPayload(data);
+
+    if (!payload) {
       return "";
+    }
+
+    if (typeof payload.text === "string") {
+      return payload.text;
+    }
+
+    if (typeof payload.message?.content === "string") {
+      return payload.message.content;
+    }
+
+    if (typeof payload.content === "string") {
+      return payload.content;
+    }
+
+    if (typeof payload.response === "string") {
+      return payload.response;
+    }
+
+    if (typeof payload.answer === "string") {
+      return payload.answer;
     }
 
     return "";
