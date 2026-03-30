@@ -37,10 +37,10 @@ export class ReferenceMetadataService {
   async getByChunkIds(chunkIds: number[]): Promise<ReferenceMetadataDto[]> {
     const uniqueChunkIds = [...new Set(chunkIds)];
     const resolved = await this.resolveMissingChunkIds(uniqueChunkIds);
-    const results = new Map(resolved.map(item => [item.chunkId, item]));
+    const results = new Map(resolved.map(item => [String(item.chunkId), item]));
 
-    return uniqueChunkIds.flatMap(chunkId => {
-      const item = results.get(chunkId);
+    return uniqueChunkIds.flatMap((chunkId) => {
+      const item = results.get(String(chunkId));
       return item ? [item] : [];
     });
   }
