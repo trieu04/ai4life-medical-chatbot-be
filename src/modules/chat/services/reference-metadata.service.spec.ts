@@ -2,11 +2,6 @@ import { ReferenceMetadataService } from "./reference-metadata.service";
 
 describe("ReferenceMetadataService", () => {
   it("resolves chunk ids through sections, versions, and guidelines", async () => {
-    const cacheManager = {
-      get: jest.fn().mockResolvedValue(undefined),
-      set: jest.fn().mockResolvedValue(undefined),
-    };
-
     const secondaryDataSource = {
       query: jest.fn()
         .mockResolvedValueOnce([
@@ -47,10 +42,7 @@ describe("ReferenceMetadataService", () => {
         ]),
     };
 
-    const service = new ReferenceMetadataService(
-      cacheManager as any,
-      secondaryDataSource as any,
-    );
+    const service = new ReferenceMetadataService(secondaryDataSource as any);
 
     await expect(service.getByChunkIds([123])).resolves.toEqual([
       {
@@ -96,12 +88,46 @@ describe("ReferenceMetadataService", () => {
     );
   });
 
-  it("falls back to startPage when pdfPage mapping is absent", async () => {
-    const cacheManager = {
-      get: jest.fn().mockResolvedValue(undefined),
-      set: jest.fn().mockResolvedValue(undefined),
+  it("deduplicates chunk ids before querying", async () => {
+    const secondaryDataSource = {
+      query: jest.fn()
+        .mockResolvedValueOnce([
+          {
+            chunk_id: 123,
+            section_id: null,
+            version_id: null,
+          },
+        ]),
     };
 
+    const service = new ReferenceMetadataService(secondaryDataSource as any);
+
+    await expect(service.getByChunkIds([123, 123])).resolves.toEqual([
+      {
+        chunkId: 123,
+        guidelineId: undefined,
+        guidelineTitle: undefined,
+        versionId: undefined,
+        versionLabel: undefined,
+        sectionId: undefined,
+        headings: [],
+        deepestHeading: undefined,
+        sectionPath: undefined,
+        startPage: undefined,
+        documentId: undefined,
+        pdfPage: undefined,
+      },
+    ]);
+
+    expect(secondaryDataSource.query).toHaveBeenCalledTimes(1);
+    expect(secondaryDataSource.query).toHaveBeenNthCalledWith(
+      1,
+      expect.stringContaining("where chunk_id = any($1)"),
+      [[123]],
+    );
+  });
+
+  it("falls back to startPage when pdfPage mapping is absent", async () => {
     const secondaryDataSource = {
       query: jest.fn()
         .mockResolvedValueOnce([
@@ -133,10 +159,7 @@ describe("ReferenceMetadataService", () => {
         ]),
     };
 
-    const service = new ReferenceMetadataService(
-      cacheManager as any,
-      secondaryDataSource as any,
-    );
+    const service = new ReferenceMetadataService(secondaryDataSource as any);
 
     const [reference] = await service.getByChunkIds([101]);
 

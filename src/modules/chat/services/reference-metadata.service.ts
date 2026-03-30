@@ -1,6 +1,4 @@
-import { CACHE_MANAGER } from "@nestjs/cache-manager";
 import { Inject, Injectable } from "@nestjs/common";
-import type { Cache } from "cache-manager";
 import { DataSource } from "typeorm";
 
 import { RAG_DATA_SOURCE } from "../rag-data-source.module";
@@ -33,44 +31,18 @@ interface VersionRow {
 @Injectable()
 export class ReferenceMetadataService {
   constructor(
-    @Inject(CACHE_MANAGER) private readonly cacheManager: Cache,
     @Inject(RAG_DATA_SOURCE) private readonly ragDataSource: DataSource,
   ) {}
 
   async getByChunkIds(chunkIds: number[]): Promise<ReferenceMetadataDto[]> {
     const uniqueChunkIds = [...new Set(chunkIds)];
-    const cachedEntries = await Promise.all(uniqueChunkIds.map(chunkId => this.getCached(chunkId)));
-
-    const results = new Map<number, ReferenceMetadataDto>();
-    const missingChunkIds: number[] = [];
-
-    cachedEntries.forEach((entry, index) => {
-      const chunkId = uniqueChunkIds[index];
-      if (entry) {
-        results.set(chunkId, entry);
-      } else {
-        missingChunkIds.push(chunkId);
-      }
-    });
-
-    if (missingChunkIds.length > 0) {
-      const resolved = await this.resolveMissingChunkIds(missingChunkIds);
-      await Promise.all(resolved.map(item => this.cacheManager.set(this.getCacheKey(item.chunkId), item, 3600_000)));
-      resolved.forEach(item => results.set(item.chunkId, item));
-    }
+    const resolved = await this.resolveMissingChunkIds(uniqueChunkIds);
+    const results = new Map(resolved.map(item => [item.chunkId, item]));
 
     return uniqueChunkIds.flatMap(chunkId => {
       const item = results.get(chunkId);
       return item ? [item] : [];
     });
-  }
-
-  private async getCached(chunkId: number): Promise<ReferenceMetadataDto | undefined> {
-    return this.cacheManager.get<ReferenceMetadataDto>(this.getCacheKey(chunkId));
-  }
-
-  private getCacheKey(chunkId: number): string {
-    return `reference:chunk:${chunkId}`;
   }
 
   private async resolveMissingChunkIds(chunkIds: number[]): Promise<ReferenceMetadataDto[]> {
