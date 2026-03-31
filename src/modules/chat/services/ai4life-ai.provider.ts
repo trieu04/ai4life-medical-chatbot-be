@@ -8,6 +8,10 @@ import {
   AiStreamChunk,
 } from "./ai-provider.interface";
 
+const ROLE_MAPPING = {
+  bac_si_tram_y_te: "bac_si_tramyte",
+};
+
 @Injectable()
 export class Ai4lifeAiProvider extends AiProvider {
   private readonly logger = new Logger(Ai4lifeAiProvider.name);
@@ -162,7 +166,7 @@ export class Ai4lifeAiProvider extends AiProvider {
         },
         body: JSON.stringify({
           query: lastUserMessage.content,
-          role,
+          role: ROLE_MAPPING[role] || role,
         }),
       });
 
@@ -259,7 +263,7 @@ export class Ai4lifeAiProvider extends AiProvider {
         },
         body: JSON.stringify({
           query: lastUserMessage.content,
-          role,
+          role: ROLE_MAPPING[role] || role,
         }),
       });
 
