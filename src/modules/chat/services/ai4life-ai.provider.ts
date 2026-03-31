@@ -22,12 +22,13 @@ export class Ai4lifeAiProvider extends AiProvider {
   async generateResponse(
     messages: AiMessage[],
     streaming = false,
+    role = "",
   ): Promise<AiResponse | AiStreamResponse> {
     if (streaming) {
-      return this.generateStreamingResponse(messages);
+      return this.generateStreamingResponse(messages, role);
     }
 
-    return this.generateNonStreamingResponse(messages);
+    return this.generateNonStreamingResponse(messages, role);
   }
 
   private readChunkBuffer(buffer: string): {
@@ -145,6 +146,7 @@ export class Ai4lifeAiProvider extends AiProvider {
 
   private async generateNonStreamingResponse(
     messages: AiMessage[],
+    role = "",
   ): Promise<AiResponse> {
     try {
       // Get the last user message as the question
@@ -160,6 +162,7 @@ export class Ai4lifeAiProvider extends AiProvider {
         },
         body: JSON.stringify({
           query: lastUserMessage.content,
+          role,
         }),
       });
 
@@ -240,6 +243,7 @@ export class Ai4lifeAiProvider extends AiProvider {
 
   private async generateStreamingResponse(
     messages: AiMessage[],
+    role = "",
   ): Promise<AiStreamResponse> {
     try {
       // Get the last user message as the question
@@ -255,6 +259,7 @@ export class Ai4lifeAiProvider extends AiProvider {
         },
         body: JSON.stringify({
           query: lastUserMessage.content,
+          role,
         }),
       });
 

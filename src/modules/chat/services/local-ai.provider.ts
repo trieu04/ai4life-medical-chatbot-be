@@ -24,6 +24,7 @@ export class LocalAiProvider extends AiProvider {
   async generateResponse(
     messages: AiMessage[],
     streaming = false,
+    _role = "",
   ): Promise<AiResponse | AiStreamResponse> {
     const systemPrompt = this.getSystemPrompt();
     const allMessages: AiMessage[] = [

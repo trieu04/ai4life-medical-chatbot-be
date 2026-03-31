@@ -8,8 +8,9 @@ export class AiService {
   async generateResponse(
     messages: Array<{ role: "user" | "assistant" | "system"; content: string }>,
     streaming = false,
+    role = "",
   ) {
-    return this.aiProvider.generateResponse(messages, streaming);
+    return this.aiProvider.generateResponse(messages, streaming, role);
   }
 
   countTokens(text: string): number {

@@ -4,6 +4,10 @@ import { BaseEntity } from "../../../common/entities/base-entity";
 export enum UserRole {
   ADMIN = "admin",
   USER = "user",
+  NONE = "",
+  NHAN_VIEN_Y_TE = "nhan_vien_y_te",
+  BAC_SI_TRAM_Y_TE = "bac_si_tram_y_te",
+  BAC_SI_BENH_VIEN_CHUYEN_SAU = "bac_si_benh_vien_chuyen_sau",
 }
 
 @Entity()

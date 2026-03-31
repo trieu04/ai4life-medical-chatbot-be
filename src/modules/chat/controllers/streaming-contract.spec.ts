@@ -17,7 +17,11 @@ describe("chat streaming contract", () => {
       }),
     } as any);
 
-    const events = await controller.startConversationStream("user-1", { content: "Hello" } as any);
+    const events = await controller.startConversationStream(
+      "user-1",
+      { role: "admin" } as any,
+      { content: "Hello" } as any,
+    );
     const values = await new Promise<Array<{ data: string }>>((resolve, reject) => {
       const emitted: Array<{ data: string }> = [];
       events.subscribe({

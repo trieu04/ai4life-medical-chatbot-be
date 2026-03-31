@@ -25,6 +25,7 @@ import { Observable, from, map } from "rxjs";
 import { plainToInstance } from "class-transformer";
 import { JwtAuthGuard } from "../../auth/guards/jwt-auth.guard";
 import { GetUserId } from "../../auth/decorators/get-user-id.decorator";
+import { GetUser } from "../../auth/decorators/get-user.decorator";
 import { ApiHttpException } from "../../../common/decorators/api-http-exception.decorator";
 import { ChatService } from "../services/chat.service";
 import { MessageService } from "../services/message.service";
@@ -37,6 +38,7 @@ import { ConversationDto } from "../dtos/conversation.dto";
 import { MessageDto } from "../dtos/message.dto";
 
 import { PaginatedResponse } from "../../../common/dtos/pagination.dto";
+import { UserEntity } from "../../auth/entities/user.entity";
 
 @ApiTags("Chat")
 @Controller("chat")
@@ -121,13 +123,14 @@ export class ChatController {
   @HttpCode(201)
   async startConversation(
     @GetUserId() userId: string,
+    @GetUser() user: UserEntity,
     @Body() dto: SendMessageDto,
   ): Promise<{
     conversation: ConversationDto;
     userMessage: MessageDto;
     assistantMessage: MessageDto;
   }> {
-    const result = await this.messageService.sendFirstMessage(userId, dto.content);
+    const result = await this.messageService.sendFirstMessage(userId, dto.content, user.role ?? "");
     return {
       conversation: plainToInstance(ConversationDto, result.conversation),
       userMessage: plainToInstance(MessageDto, result.userMessage),
@@ -140,11 +143,13 @@ export class ChatController {
   @Sse("sse")
   async startConversationStream(
     @GetUserId() userId: string,
+    @GetUser() user: UserEntity,
     @Body() dto: SendMessageDto,
   ): Promise<Observable<{ data: string }>> {
     const result = await this.messageService.sendFirstMessageStreaming(
       userId,
       dto.content,
+      user.role ?? "",
     );
 
     // First, emit the conversation ID so client knows the new conversation
@@ -191,6 +196,7 @@ export class ChatController {
   @ApiHttpException(() => [])
   async sendMessage(
     @GetUserId() userId: string,
+    @GetUser() user: UserEntity,
     @Param("id") conversationId: string,
     @Body() dto: SendMessageDto,
   ): Promise<{ userMessage: MessageDto; assistantMessage: MessageDto }> {
@@ -198,6 +204,7 @@ export class ChatController {
       conversationId,
       userId,
       dto,
+      user.role ?? "",
     );
 
     return {
@@ -212,6 +219,7 @@ export class ChatController {
   @Sse("sse")
   async sendMessageStreaming(
     @GetUserId() userId: string,
+    @GetUser() user: UserEntity,
     @Param("id") conversationId: string,
     @Body() dto: SendMessageDto,
   ): Promise<Observable<{ data: string }>> {
@@ -219,6 +227,7 @@ export class ChatController {
       conversationId,
       userId,
       dto,
+      user.role ?? "",
     );
 
     return from(

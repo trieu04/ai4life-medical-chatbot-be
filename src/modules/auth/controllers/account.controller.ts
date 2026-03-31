@@ -71,7 +71,7 @@ export class AccountController {
   @ApiHttpException(() => [BadRequestException, UnauthorizedException])
   @UseGuards(JwtAuthGuard)
   @HttpCode(200)
-  async updateUser(@GetUserId() userId: string, @Body() dto: Pick<UserDto, "username" | "name" | "email">) {
+  async updateUser(@GetUserId() userId: string, @Body() dto: Pick<UserDto, "username" | "name" | "email" | "role">) {
     return this.accountService.updateUser(userId, dto);
   }
 

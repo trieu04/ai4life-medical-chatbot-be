@@ -34,6 +34,7 @@ export class MessageService {
     conversationId: string,
     userId: string,
     dto: SendMessageDto,
+    role = "",
   ): Promise<{ userMessage: MessageEntity; assistantMessage: MessageEntity }> {
     // Verify conversation exists and belongs to user
     const conversation = await this.chatService.getConversationById(
@@ -62,6 +63,7 @@ export class MessageService {
     const aiResponse = (await this.aiService.generateResponse(
       contextMessages,
       false,
+      role,
     )) as AiResponse;
 
     // Create assistant message
@@ -87,6 +89,7 @@ export class MessageService {
     conversationId: string,
     userId: string,
     dto: SendMessageDto,
+    role = "",
   ): Promise<{
     userMessage: MessageEntity;
     stream: AsyncIterable<AiStreamChunk>;
@@ -118,6 +121,7 @@ export class MessageService {
     const aiResponse = (await this.aiService.generateResponse(
       contextMessages,
       true,
+      role,
     )) as AiStreamResponse;
 
     // We'll save the complete assistant message after streaming completes
@@ -203,6 +207,7 @@ export class MessageService {
   async sendFirstMessage(
     userId: string,
     content: string,
+    role = "",
   ): Promise<{
     conversation: import("../entities/conversation.entity").ConversationEntity;
     userMessage: MessageEntity;
@@ -231,6 +236,7 @@ export class MessageService {
     const aiResponse = (await this.aiService.generateResponse(
       contextMessages,
       false,
+      role,
     )) as AiResponse;
 
     // Create assistant message
@@ -259,6 +265,7 @@ export class MessageService {
   async sendFirstMessageStreaming(
     userId: string,
     content: string,
+    role = "",
   ): Promise<{
     conversation: import("../entities/conversation.entity").ConversationEntity;
     userMessage: MessageEntity;
@@ -287,6 +294,7 @@ export class MessageService {
     const aiResponse = (await this.aiService.generateResponse(
       contextMessages,
       true,
+      role,
     )) as AiStreamResponse;
 
     return {

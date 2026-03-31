@@ -33,6 +33,7 @@ export abstract class AiProvider {
   abstract generateResponse(
     messages: AiMessage[],
     streaming?: boolean,
+    role?: string,
   ): Promise<AiResponse | AiStreamResponse>;
 
   abstract countTokens(text: string): number;
